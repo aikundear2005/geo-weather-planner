@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoWeather Planner v9.3 (完整版)</title>
+    <title>GeoWeather Planner v9.4 (含地圖點擊)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.12/css/weather-icons.min.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -37,6 +37,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             z-index: 1;
             position: relative;
+            cursor: crosshair; /* 提示使用者地圖可點擊 */
         }
         .panel {
             position: absolute;
@@ -361,7 +362,7 @@
             grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
             gap: 8px;
             padding: 8px;
-            max-height: 400px; /* 限制最大高度，使其可滾動 */
+            max-height: 400px;
             overflow-y: auto;
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -455,6 +456,13 @@ document.addEventListener('DOMContentLoaded', function() {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
 
+    // --- 新增：地圖點擊事件 ---
+    map.on('click', function(e) {
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        plotAndFetchWeather(lat, lng, '地圖點選位置');
+    });
+
     const inputPanel = document.getElementById('input-panel');
     const resultPanel = document.getElementById('result-panel');
     const weatherPanel = document.getElementById('weather-panel');
@@ -462,7 +470,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const dailyDetailModal = document.getElementById('daily-detail-modal');
     const dailyDetailContent = document.getElementById('daily-detail-content');
 
-    // 按鈕
     const geocodeBtn = document.getElementById('geocode-btn');
     const plotBtn = document.getElementById('plot-btn');
     const newSearchBtn = document.getElementById('new-search-btn');
@@ -494,13 +501,16 @@ document.addEventListener('DOMContentLoaded', function() {
         weatherPanel.classList.add('active');
     }
     
-    // 將繪製標記與取得天氣資料的邏輯整合
     async function plotAndFetchWeather(lat, lng, locationName = '指定座標') {
         currentCoords = { lat, lng };
 
         if (marker) marker.remove();
         marker = L.marker([lat, lng]).addTo(map);
         map.setView([lat, lng], 13);
+        
+        // 立即顯示結果面板並提示載入中
+        resultText.innerHTML = `<h4><i class="wi wi-time-3"></i> 載入中...</h4>查詢 ${locationName} 的資料`;
+        showResultView();
         
         const elevationPromise = getElevation(lat, lng);
         const weatherPromise = getWeatherData(lat, lng);
@@ -510,7 +520,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (!weatherData) {
                 resultText.innerHTML = `<h4><i class="wi wi-na"></i> 錯誤</h4>無法取得天氣資料，請稍後再試。`;
-                showResultView();
                 return;
             }
 
@@ -522,15 +531,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 緯度: ${parseFloat(lat).toFixed(4)}, 經度: ${parseFloat(lng).toFixed(4)}<br>
                 海拔高度: ${elevation ? `${elevation} 公尺` : '無法取得'}
             `;
-            showResultView();
         } catch (error) {
             console.error("處理資料時發生錯誤:", error);
             resultText.innerHTML = `<h4><i class="wi wi-na"></i> 錯誤</h4>處理資料時發生錯誤，請查看控制台。`;
-            showResultView();
         }
     }
     
-    // 新增：地址轉座標功能
     async function geocodeAddress() {
         const address = document.getElementById('addressInput').value;
         const region = document.getElementById('regionInput').value;
@@ -554,6 +560,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 plotAndFetchWeather(lat, lon, display_name);
             } else {
                 alert('找不到此地址，請嘗試更詳細的輸入或檢查錯字。');
+                showInputView(); // 查無地址時，返回輸入介面
             }
         } catch (error) {
             console.error('Geocoding error:', error);
@@ -638,8 +645,8 @@ document.addEventListener('DOMContentLoaded', function() {
         today.setHours(0, 0, 0, 0);
 
         data.daily.time.forEach((day, i) => {
-            const forecastDate = new Date(day + 'T00:00:00'); // Ensure date is parsed as local
-            if (forecastDate >= today && i < 16) { // Show today and future days
+            const forecastDate = new Date(day + 'T00:00:00');
+            if (forecastDate >= today && i < 16) {
                 const minTemp = data.daily.temperature_2m_min[i];
                 const maxTemp = data.daily.temperature_2m_max[i];
                 const rainProb = data.daily.precipitation_probability_max[i];
@@ -669,8 +676,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-
-    // ⭐ 補全此函數 ⭐
+    
     function showDailyDetail(dayIndex) {
         if (!fullWeatherData) return;
         const date = new Date(fullWeatherData.daily.time[dayIndex] + 'T00:00:00');
@@ -733,7 +739,6 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
-    // 綁定事件監聽器
     plotBtn.addEventListener('click', () => {
         const lat = document.getElementById('latInput').value;
         const lng = document.getElementById('lngInput').value;
