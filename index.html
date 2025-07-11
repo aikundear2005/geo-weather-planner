@@ -3,73 +3,407 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoWeather Planner v9.2</title>
-
+    <title>GeoWeather Planner v9.3 (完整版)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.12/css/weather-icons.min.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
-
     <style>
-        :root { --primary-color: #007bff; --primary-hover: #0056b3; --panel-bg: rgba(255, 255, 255, 0.97); --text-color: #212529; --border-color: #dee2e6; }
-        html, body { height: 100%; width: 100%; margin: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-        #map { height: 100%; width: 100%; background-color: #aacbff; z-index: 1; }
-        .panel { position: absolute; z-index: 1000; transition: opacity 0.4s ease, transform 0.4s ease; visibility: hidden; opacity: 0; }
-        .panel.active { visibility: visible; opacity: 1; }
-        #input-panel { top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); width: 90%; max-width: 320px; padding: 20px; background: var(--panel-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 12px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); }
-        #input-panel.active { transform: translate(-50%, -50%) scale(1); }
-        #result-panel { bottom: 15px; left: 50%; transform: translateX(-50%) translateY(150%); width: 90%; max-width: 320px; padding: 12px; background: var(--panel-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 12px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); text-align: center; }
-        #result-panel.active { transform: translateX(-50%) translateY(0); }
-        .result-actions { display: flex; gap: 8px; margin-top: 12px; }
-        #resultText { line-height: 1.5; font-size: 0.95em; }
-        #resultText h4 { font-size: 1em; margin-bottom: 5px;}
-        .result-actions button { padding: 8px; font-size: 14px; }
-        #weather-panel { top: 0; left: 0; width: 100vw; height: 100vh; background: #f0f2f5; display: flex; flex-direction: column; padding: clamp(10px, 2vw, 20px); box-sizing: border-box; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); z-index: 2000; }
-        #weather-panel.active { transform: translateY(0); }
-        .panel-header { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
-        .panel-content { flex-grow: 1; overflow-y: auto; padding-top: 10px; }
-        .weather-dashboard { display: grid; grid-template-columns: 1fr 2.5fr; gap: clamp(10px, 2vw, 20px); height: 100%;}
-        .weather-main, .weather-forecast { display: flex; flex-direction: column; gap: clamp(10px, 2vh, 20px); }
-        .weather-card { background: #fff; border-radius: 8px; padding: clamp(10px, 2vw, 15px); box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column;}
-        .weather-card .weather-title { border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px; flex-shrink: 0; }
-        .weather-card .weather-grid-container { flex-grow: 1; overflow-y: auto; }
-        @media (max-width: 900px) { .weather-dashboard { grid-template-columns: 1fr; } }
-        h3,h4 { margin: 0; color: var(--text-color); }
-        label { display: block; margin-bottom: 8px; font-weight: 600; color: #495057; text-align: left;}
-        input[type="text"], input[type="file"] { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; }
-        button { width: 100%; padding: 12px; background-color: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
-        button:hover { background-color: var(--primary-hover); }
-        button.secondary { background-color: #6c757d; }
-        button.secondary:hover { background-color: #5a6268; }
-        button i { margin-right: 8px; }
-        .weather-title { font-weight: bold; font-size: clamp(1em, 2vw, 1.1em); color: var(--primary-color); }
-        .weather-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
-        .weather-item { background: #e9ecef; padding: 8px; border-radius: 4px; line-height: 1.4; text-align: center; font-size: clamp(0.8em, 1.5vw, 0.9em); display: flex; flex-direction: column; justify-content: space-between;}
-        .weather-item.clickable { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
-        .weather-item.clickable:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .disclaimer { margin-top: 20px; font-size: 0.8em; color: #6c757d; text-align: center; }
-        .back-btn { font-size: 1.2em; cursor: pointer; color: var(--primary-color); font-weight: bold; }
-        .modal { display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
-        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 8px; position: relative; }
-        .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        :root {
+             --primary-color: #2563eb;
+             --primary-hover: #1d4ed8;
+             --panel-bg: rgba(255, 255, 255, 0.98);
+             --text-color: #1f2937;
+             --border-color: #e5e7eb;
+            --secondary-color: #6b7280;
+            --accent-color: #0ea5e9;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        #map {
+            height: 100vh;
+            width: 100vw;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 1;
+            position: relative;
+        }
+        .panel {
+            position: absolute;
+            z-index: 1000;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            visibility: hidden;
+            opacity: 0;
+        }
+        .panel.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        #input-panel {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.95);
+            width: 85%;
+            max-width: 280px;
+            padding: 16px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 16px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        #input-panel.active {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        #result-panel {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(120%);
+            width: 85%;
+            max-width: 280px;
+            padding: 16px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 16px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        #result-panel.active {
+            transform: translateX(-50%) translateY(0);
+        }
+        .result-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        #resultText {
+            line-height: 1.6;
+            font-size: 13px;
+            color: var(--text-color);
+        }
+        #resultText h4 {
+            font-size: 16px;
+            margin: 0 0 8px 0;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        .result-actions button {
+            padding: 8px 12px;
+            font-size: 12px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        #weather-panel {
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            box-sizing: border-box;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 2000;
+            overflow: hidden;
+        }
+        #weather-panel.active {
+            transform: translateY(0);
+        }
+        .panel-header {
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px 12px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .panel-content {
+            flex: 1;
+            overflow: hidden;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .weather-dashboard {
+            height: 100%;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .weather-main {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .weather-forecast {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .weather-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        .weather-card .weather-title {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        .weather-card .weather-grid-container {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        h3, h4 {
+            margin: 0;
+            color: var(--text-color);
+            font-weight: 600;
+        }
+        h3 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: var(--primary-color);
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: var(--text-color);
+            text-align: left;
+            font-size: 13px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.8);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button.secondary {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #4b5563 100%);
+            box-shadow: 0 2px 8px rgba(107, 114, 128, 0.2);
+        }
+        button.secondary:hover {
+            box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+        }
+        button i {
+            margin-right: 6px;
+        }
+        .weather-title {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--primary-color);
+        }
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+            gap: 8px;
+        }
+        .weather-item {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            padding: 10px;
+            border-radius: 8px;
+            line-height: 1.4;
+            text-align: center;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 70px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .weather-item.clickable {
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .weather-item.clickable:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+        }
+        .disclaimer {
+            margin-top: 16px;
+            font-size: 11px;
+            color: var(--secondary-color);
+            text-align: center;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
+        }
+        .back-btn {
+            font-size: 16px;
+            cursor: pointer;
+            color: var(--primary-color);
+            font-weight: 600;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .back-btn:hover {
+            background: rgba(37, 99, 235, 0.1);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 3000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .modal-content {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            margin: 0;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 20px;
+            color: var(--secondary-color);
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.8);
+            transition: all 0.2s;
+        }
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 1);
+            color: var(--danger-color);
+        }
+        .temp-line {
+            margin: 2px 0;
+            font-size: 11px;
+        }
+        .rainfall-desc {
+            font-size: 12px;
+            color: var(--secondary-color);
+            font-style: italic;
+        }
+        hr {
+            border: none;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+            margin: 12px 0;
+        }
+        .hourly-forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 8px;
+            padding: 8px;
+            max-height: 400px; /* 限制最大高度，使其可滾動 */
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.02);
+        }
+        .hourly-item {
+            padding: 8px;
+            text-align: center;
+            font-size: 12px;
+            background: #fff;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .hourly-item .hour {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        @media (max-width: 400px) {
+            #input-panel, #result-panel { width: 90%; max-width: 320px; }
+            .weather-grid { grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); }
+            button { padding: 10px; font-size: 13px; }
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
+        ::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary-hover); }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <div id="input-panel" class="panel active">
-        <h3>GeoWeather Planner</h3>
+        <h3>🌤️ 天氣查詢</h3>
         <label for="addressInput"><i class="wi wi-search"></i> 地址查詢</label>
-        <input type="text" id="addressInput" placeholder="地點名稱">
-        <input type="text" id="regionInput" placeholder="地區/縣市 (選填)" style="margin-top: 5px;">
-        <button id="geocode-btn">查詢</button>
+        <input type="text" id="addressInput" placeholder="輸入地點名稱">
+        <input type="text" id="regionInput" placeholder="地區/縣市 (選填)" style="margin-top: 8px;">
+        <button id="geocode-btn"><i class="wi wi-search"></i> 查詢地址</button>
         <hr>
         <label for="latInput"><i class="wi wi-geo-alt"></i> 座標查詢</label>
         <input type="text" id="latInput" placeholder="緯度">
-        <input type="text" id="lngInput" placeholder="經度" style="margin-top: 5px;">
-        <button id="plot-btn">標定</button>
-        <hr>
-        <label for="imageInput"><i class="wi wi-camera"></i> 從相片讀取座標</label>
-        <input type="file" id="imageInput" accept="image/jpeg">
+        <input type="text" id="lngInput" placeholder="經度" style="margin-top: 8px;">
+        <button id="plot-btn"><i class="wi wi-target"></i> 定位座標</button>
     </div>
     <div id="result-panel" class="panel">
         <div id="resultText"></div>
@@ -78,98 +412,343 @@
             <button id="show-weather-btn"><i class="wi wi-day-cloudy"></i> 天氣預報</button>
         </div>
     </div>
-    <div id="weather-panel" class="panel"></div>
+    <div id="weather-panel" class="panel">
+        <div class="panel-header">
+            <h4><i class="wi wi-thermometer"></i> 天氣報告</h4>
+            <span class="back-btn" id="back-from-weather-dynamic">← 返回</span>
+        </div>
+        <div class="panel-content">
+            <div class="weather-dashboard">
+                <div class="weather-main">
+                    <div class="weather-card">
+                        <div class="weather-title">過去48小時 (安全參考)</div>
+                        <div id="past-weather-content"></div>
+                    </div>
+                    <div class="weather-card">
+                        <div class="weather-title">目前狀況</div>
+                        <div id="current-weather-content"></div>
+                    </div>
+                </div>
+                <div class="weather-forecast">
+                    <div class="weather-card">
+                        <div class="weather-title">未來 16 天預報 <small>(點擊查看詳情)</small></div>
+                        <div class="weather-grid-container">
+                            <div class="weather-grid" id="forecast-grid"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="disclaimer">
+                    📊 資料來源: Open-Meteo.com | 🎨 圖示: Weather Icons<br>
+                    ⚠️ 天氣預報僅供參考，請以中央氣象署及實地現況為準，並做好萬全準備。
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="daily-detail-modal" class="modal">
         <div class="modal-content" id="daily-detail-content"></div>
     </div>
 
-    <script>
-        // MODIFICATION: Wrapped all code in DOMContentLoaded listener
-        document.addEventListener('DOMContentLoaded', function() {
-            const map = L.map('map').setView([23.9738, 120.982], 8);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            }).addTo(map);
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const map = L.map('map').setView([23.9738, 120.982], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
 
-            const inputPanel = document.getElementById('input-panel');
-            const resultPanel = document.getElementById('result-panel');
-            const weatherPanel = document.getElementById('weather-panel');
-            const resultText = document.getElementById('resultText');
-            const dailyDetailModal = document.getElementById('daily-detail-modal');
-            const dailyDetailContent = document.getElementById('daily-detail-content');
+    const inputPanel = document.getElementById('input-panel');
+    const resultPanel = document.getElementById('result-panel');
+    const weatherPanel = document.getElementById('weather-panel');
+    const resultText = document.getElementById('resultText');
+    const dailyDetailModal = document.getElementById('daily-detail-modal');
+    const dailyDetailContent = document.getElementById('daily-detail-content');
+
+    // 按鈕
+    const geocodeBtn = document.getElementById('geocode-btn');
+    const plotBtn = document.getElementById('plot-btn');
+    const newSearchBtn = document.getElementById('new-search-btn');
+    const showWeatherBtn = document.getElementById('show-weather-btn');
+    const backFromWeatherBtn = document.getElementById('back-from-weather-dynamic');
+
+    let marker;
+    let currentCoords = null;
+    let fullWeatherData = null;
+
+    function showInputView() {
+        resultPanel.classList.remove('active');
+        weatherPanel.classList.remove('active');
+        inputPanel.classList.add('active');
+        if (marker) {
+            marker.remove();
+            marker = null;
+        }
+    }
+
+    function showResultView() {
+        inputPanel.classList.remove('active');
+        weatherPanel.classList.remove('active');
+        resultPanel.classList.add('active');
+    }
+
+    function showWeatherView() {
+        resultPanel.classList.remove('active');
+        weatherPanel.classList.add('active');
+    }
+    
+    // 將繪製標記與取得天氣資料的邏輯整合
+    async function plotAndFetchWeather(lat, lng, locationName = '指定座標') {
+        currentCoords = { lat, lng };
+
+        if (marker) marker.remove();
+        marker = L.marker([lat, lng]).addTo(map);
+        map.setView([lat, lng], 13);
+        
+        const elevationPromise = getElevation(lat, lng);
+        const weatherPromise = getWeatherData(lat, lng);
+
+        try {
+            const [elevation, weatherData] = await Promise.all([elevationPromise, weatherPromise]);
             
-            let marker;
-            let currentCoords = null;
-            let fullWeatherData = null;
-
-            function showInputView() { resultPanel.classList.remove('active'); weatherPanel.classList.remove('active'); inputPanel.classList.add('active'); if (marker) { marker.remove(); marker = null; } }
-            function showResultView() { inputPanel.classList.remove('active'); weatherPanel.classList.remove('active'); resultPanel.classList.add('active'); }
-            function showWeatherView() { resultPanel.classList.remove('active'); weatherPanel.classList.add('active'); }
-
-            async function getElevation(lat, lng) { try { const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`); const d = await r.json(); return d?.elevation?.[0] ?? null; } catch (e) { console.error(e); return null; } }
-            async function getWeatherData(lat, lng) { const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max&current=temperature_2m,apparent_temperature,precipitation,precipitation_probability&past_days=2&forecast_days=16&timezone=auto`; try { const r = await fetch(url); return await r.json(); } catch (e) { console.error(e); return null; } }
-            function getRainfallInfo(mm) { if (typeof mm !== 'number' || isNaN(mm)) return { desc: '資料異常', icon: 'wi-na' }; if (mm <= 0) return { desc: '無雨', icon: 'wi-day-sunny' }; if (mm < 2.5) return { desc: '毛毛雨', icon: 'wi-sprinkle' }; if (mm < 15) return { desc: '小雨', icon: 'wi-rain' }; if (mm < 50) return { desc: '大雨', icon: 'wi-showers' }; if (mm < 100) return { desc: '豪雨', icon: 'wi-rain-wind' }; return { desc: '大豪雨', icon: 'wi-thunderstorm' }; }
-            function getAccumulatedRainfallDescription(mm) { if (mm < 20) return "影響輕微，但步道上的青苔石塊仍可能濕滑。"; if (mm < 80) return "相當於一場持續數小時的雷陣雨，土質已鬆軟。"; if (mm < 200) return "雨量驚人，如同高速公路暴雨。邊坡含水量極高。"; return "致災性雨量！溪水可能暴漲，土石流風險劇增。"; }
-            function getTemperatureIcon(temp) { if (temp > 32) return `<i class="wi wi-hot" style="color: #e63946;" title="酷熱"></i>`; if (temp > 25) return `<i class="wi wi-thermometer" style="color: #f4a261;" title="溫暖"></i>`; if (temp < 10) return `<i class="wi wi-snowflake-cold" style="color: #0077b6;" title="寒冷"></i>`; if (temp < 18) return `<i class="wi wi-thermometer-exterior" style="color: #2a9d8f;" title="涼爽"></i>`; return `<i class="wi wi-thermometer" title="舒適"></i>`; }
-            function convertDMSToDD(d, m, s, dir) { let dd = d + m / 60 + s / 3600; if (dir === "S" || dir === "W") dd *= -1; return dd; }
-
-            function formatWeatherInfo(data) {
-                fullWeatherData = data;
-                let dailyForecastHTML = '';
-                const todayStr = new Date().toISOString().split('T')[0];
-                let daysShown = 0;
-                data.daily.time.forEach((day, i) => {
-                    if (day > todayStr && daysShown < 15) {
-                        const forecastDate = new Date(day);
-                        const minTemp = data.daily.temperature_2m_min[i];
-                        const maxTemp = data.daily.temperature_2m_max[i];
-                        const rainProb = data.daily.precipitation_probability_max[i];
-                        dailyForecastHTML += `<div class="weather-item clickable" data-day-index="${i}"><b>${forecastDate.getMonth()+1}/${forecastDate.getDate()}</b><div class="temp-line">${getTemperatureIcon(minTemp)} ${minTemp}° / ${getTemperatureIcon(maxTemp)} ${maxTemp}°</div><div class="temp-line"><i class="wi wi-umbrella"></i> ${rainProb}%</div></div>`;
-                        daysShown++;
-                    }
-                });
-
-                let html = `
-                    <div class="panel-header"><h4>${getTemperatureIcon(data.current.temperature_2m)} 天氣報告</h4><span class="back-btn" id="back-from-weather-dynamic">&larr; 返回</span></div>
-                    <div class="panel-content"><div class="weather-dashboard">
-                        <div class="weather-main"><div class="weather-card"><div class="weather-title">過去48小時 (安全參考)</div><p>累積雨量: <b>${data.hourly.precipitation.slice(0, 48).reduce((a, b) => a + b, 0).toFixed(1)} mm</b><br><span class="rainfall-desc">${getAccumulatedRainfallDescription(data.hourly.precipitation.slice(0, 48).reduce((a, b) => a + b, 0))}</span></p></div><div class="weather-card"><div class="weather-title">目前狀況</div><p style="font-size: 1.2em;">${getTemperatureIcon(data.current.temperature_2m)} ${data.current.temperature_2m}°C <small>(體感 ${data.current.apparent_temperature}°C)</small></p><p><i class="wi ${getRainfallInfo(data.current.precipitation).icon}"></i> ${getRainfallInfo(data.current.precipitation).desc}</p></div></div>
-                        <div class="weather-forecast"><div class="weather-card"><div class="weather-title">未來 16 天預報 <small>(點擊每日查看詳情)</small></div><div class="weather-grid-container"><div class="weather-grid">${dailyForecastHTML}</div></div></div></div>
-                        <div class="disclaimer" style="grid-column: 1 / -1;">資料來源: Open-Meteo.com | 圖示: Weather Icons<br>天氣預報僅供參考，請以中央氣象署及實地現況為準，並做好萬全準備。</div>
-                    </div></div>`;
-                return html;
-            }
-            
-            function showDailyDetail(dayIndex) {
-                if (!fullWeatherData) return;
-                const date = new Date(fullWeatherData.daily.time[dayIndex]);
-                let content = `<span class="close-btn" id="close-daily-modal">&times;</span><h4>${date.getMonth()+1}/${date.getDate()} 詳細預報</h4>`;
-                const dayStartIndex = 24 * dayIndex;
-                const daytimeTemps = fullWeatherData.hourly.temperature_2m.slice(dayStartIndex + 7, dayStartIndex + 19);
-                const nighttimeTemps = [...fullWeatherData.hourly.temperature_2m.slice(dayStartIndex, dayStartIndex + 7), ...fullWeatherData.hourly.temperature_2m.slice(dayStartIndex + 19, dayStartIndex + 24)];
-                const dayHigh = daytimeTemps.length > 0 ? Math.max(...daytimeTemps) : 'N/A';
-                const nightLow = nighttimeTemps.length > 0 ? Math.min(...nighttimeTemps) : 'N/A';
-                content += `<p>${getTemperatureIcon(dayHigh)} 日高溫: ${dayHigh.toFixed(1)}°C | ${getTemperatureIcon(nightLow)} 夜低溫: ${nightLow.toFixed(1)}°C</p><hr>`;
-                content += `<h5>每 3 小時累積雨量 (mm)</h5><div class="weather-grid">`;
-                for (let i = 0; i < 24; i += 3) { const blockPrecip = fullWeatherData.hourly.precipitation.slice(dayStartIndex + i, dayStartIndex + i + 3).reduce((a, b) => a + b, 0); content += `<div><b>${String(i).padStart(2,'0')}-${String(i+3).padStart(2,'0')}</b><br>${blockPrecip.toFixed(1)} mm</div>`; }
-                content += `</div>`;
-                dailyDetailContent.innerHTML = content;
-                dailyDetailModal.style.display = 'block';
-                document.getElementById('close-daily-modal').onclick = () => { dailyDetailModal.style.display = 'none'; };
+            if (!weatherData) {
+                resultText.innerHTML = `<h4><i class="wi wi-na"></i> 錯誤</h4>無法取得天氣資料，請稍後再試。`;
+                showResultView();
+                return;
             }
 
-            async function processNewLocation(lat, lng, title, baseDetails) { if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) { alert("收到的座標無效"); return; } currentCoords = { lat, lng }; map.flyTo([lat, lng], 14); if (marker) marker.setLatLng([lat, lng]); else marker = L.marker([lat, lng]).addTo(map); showResultView(); resultText.innerHTML = `<h4>${title}</h4><p>${baseDetails}</p><hr>海拔: 查詢中...`; const e = await getElevation(lat, lng); const t = e !== null ? `<b>海拔:</b> ${e.toFixed(2)} 公尺` : '<b>海拔:</b> 查詢失敗'; const c = `<h4>${title}</h4><p>${baseDetails}</p><hr>${t}`; resultText.innerHTML = c; marker.bindPopup(c, {offset: [0, -15]}).openPopup(); }
-            
-            document.getElementById('show-weather-btn').addEventListener('click', async () => { if (!currentCoords) return; showWeatherView(); weatherPanel.innerHTML = '<div style="text-align:center;"><h3><i class="wi wi-cloud-refresh"></i> 正在載入天氣資料...</h3></div>'; const d = await getWeatherData(currentCoords.lat, currentCoords.lng); if (d && !d.error) { weatherPanel.innerHTML = formatWeatherInfo(d); document.getElementById('back-from-weather-dynamic').addEventListener('click', showResultView); const gridContainer = weatherPanel.querySelector('.weather-grid-container'); if(gridContainer) { gridContainer.addEventListener('click', (event) => { const targetItem = event.target.closest('.weather-item.clickable'); if(targetItem) { const dayIndex = targetItem.dataset.dayIndex; showDailyDetail(parseInt(dayIndex)); } }); } } else { weatherPanel.innerHTML = `<h3>天氣資料載入失敗</h3><p>${d?.reason||'請檢查網路連線'}</p><button onclick="showResultView()">返回</button>`; } });
-            document.getElementById('new-search-btn').addEventListener('click', showInputView);
-            map.on('click', async (e) => { const { lat, lng } = e.latlng; document.getElementById('latInput').value = lat.toFixed(6); document.getElementById('lngInput').value = lng.toFixed(6); await processNewLocation(lat, lng, "地圖點選位置", `緯度: ${lat.toFixed(6)}<br>經度: ${lng.toFixed(6)}`); });
-            async function geocodeAddress() { const address = document.getElementById('addressInput').value; const region = document.getElementById('regionInput').value; if (!address) { alert('請輸入地點名稱'); return; } const fullQuery = region ? `${address} ${region}` : address; const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullQuery)}`; try { const r = await fetch(url); const d = await r.json(); if (d && d.length > 0 && d[0].lat && d[0].lon) { const lat = parseFloat(d[0].lat); const lng = parseFloat(d[0].lon); document.getElementById('latInput').value = lat.toFixed(6); document.getElementById('lngInput').value = lng.toFixed(6); await processNewLocation(lat, lng, "地址查詢結果", `<i>${d[0].display_name}</i>`); } else { alert(`錯誤：找不到「${fullQuery}」。`); } } catch (e) { console.error('Geocoding error:', e); alert('錯誤：地址查詢時發生問題。'); } }
-            document.getElementById('geocode-btn').addEventListener('click', geocodeAddress);
-            async function plotCoordinates() { const lat = parseFloat(document.getElementById('latInput').value); const lng = parseFloat(document.getElementById('lngInput').value); await processNewLocation(lat, lng, "座標位置", `緯度: ${lat.toFixed(6)}<br>經度: ${lng.toFixed(6)}`); }
-            document.getElementById('plot-btn').addEventListener('click', plotCoordinates);
-            document.getElementById('imageInput').addEventListener('change', (event) => { const f = event.target.files[0]; if (!f) return; EXIF.getData(f, async function() { function c(d, m, s, dir) { let dd = d + m / 60 + s / 3600; if (dir === "S" || dir === "W") dd *= -1; return dd; } const latDMS = EXIF.getTag(this, "GPSLatitude"); const lonDMS = EXIF.getTag(this, "GPSLongitude"); const latRef = EXIF.getTag(this, "GPSLatitudeRef"); const lonRef = EXIF.getTag(this, "GPSLongitudeRef"); if (latDMS && lonDMS && latRef && lonRef) { const lat = c(latDMS[0], latDMS[1], latDMS[2], latRef); const lng = c(lonDMS[0], lonDMS[1], lonDMS[2], lonRef); document.getElementById('latInput').value = lat.toFixed(6); document.getElementById('lngInput').value = lng.toFixed(6); await processNewLocation(lat, lng, "相片座標", `緯度: ${lat.toFixed(6)}<br>經度: ${lng.toFixed(6)}`); } else { alert('錯誤：此圖片不含GPS資訊。'); showInputView(); } }); });
-            
-            showInputView();
+            fullWeatherData = weatherData;
+            formatWeatherInfo(weatherData);
+
+            resultText.innerHTML = `
+                <h4>${locationName}</h4>
+                緯度: ${parseFloat(lat).toFixed(4)}, 經度: ${parseFloat(lng).toFixed(4)}<br>
+                海拔高度: ${elevation ? `${elevation} 公尺` : '無法取得'}
+            `;
+            showResultView();
+        } catch (error) {
+            console.error("處理資料時發生錯誤:", error);
+            resultText.innerHTML = `<h4><i class="wi wi-na"></i> 錯誤</h4>處理資料時發生錯誤，請查看控制台。`;
+            showResultView();
+        }
+    }
+    
+    // 新增：地址轉座標功能
+    async function geocodeAddress() {
+        const address = document.getElementById('addressInput').value;
+        const region = document.getElementById('regionInput').value;
+        if (!address) {
+            alert('請輸入地址！');
+            return;
+        }
+
+        const originalText = geocodeBtn.innerHTML;
+        geocodeBtn.innerHTML = `<i class="wi wi-time-3"></i> 查詢中...`;
+        geocodeBtn.disabled = true;
+
+        const query = encodeURIComponent(`${address} ${region}`);
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&countrycodes=tw&limit=1`;
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data && data.length > 0) {
+                const { lat, lon, display_name } = data[0];
+                plotAndFetchWeather(lat, lon, display_name);
+            } else {
+                alert('找不到此地址，請嘗試更詳細的輸入或檢查錯字。');
+            }
+        } catch (error) {
+            console.error('Geocoding error:', error);
+            alert('地址查詢服務失敗，請稍後再試。');
+        } finally {
+            geocodeBtn.innerHTML = originalText;
+            geocodeBtn.disabled = false;
+        }
+    }
+
+    async function getElevation(lat, lng) {
+        try {
+            const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`);
+            const d = await r.json();
+            return d?.elevation?.[0] ?? null;
+        } catch (e) {
+            console.error(e);
+            return null;
+        }
+    }
+
+    async function getWeatherData(lat, lng) {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max&current=temperature_2m,apparent_temperature,precipitation,precipitation_probability&past_days=2&forecast_days=16&timezone=auto`;
+        try {
+            const r = await fetch(url);
+            return await r.json();
+        } catch (e) {
+            console.error(e);
+            return null;
+        }
+    }
+
+    function getRainfallInfo(mm) {
+        if (typeof mm !== 'number' || isNaN(mm)) return { desc: '資料異常', icon: 'wi-na' };
+        if (mm <= 0) return { desc: '無雨', icon: 'wi-day-sunny' };
+        if (mm < 2.5) return { desc: '毛毛雨', icon: 'wi-sprinkle' };
+        if (mm < 15) return { desc: '小雨', icon: 'wi-rain' };
+        if (mm < 50) return { desc: '大雨', icon: 'wi-showers' };
+        if (mm < 100) return { desc: '豪雨', icon: 'wi-rain-wind' };
+        return { desc: '大豪雨', icon: 'wi-thunderstorm' };
+    }
+
+    function getAccumulatedRainfallDescription(mm) {
+        if (mm < 20) return "影響輕微，但步道上的青苔石塊仍可能濕滑。";
+        if (mm < 80) return "相當於一場持續數小時的雷陣雨，土質已鬆軟。";
+        if (mm < 200) return "雨量驚人，如同高速公路暴雨。邊坡含水量極高。";
+        return "致災性雨量！溪水可能暴漲，土石流風險劇增。";
+    }
+
+    function getTemperatureIcon(temp) {
+        if (typeof temp !== 'number' || isNaN(temp)) return `<i class="wi wi-na"></i>`;
+        if (temp > 32) return `<i class="wi wi-hot" style="color: #ef4444;" title="酷熱"></i>`;
+        if (temp > 25) return `<i class="wi wi-thermometer" style="color: #f59e0b;" title="溫暖"></i>`;
+        if (temp < 10) return `<i class="wi wi-snowflake-cold" style="color: #0ea5e9;" title="寒冷"></i>`;
+        if (temp < 18) return `<i class="wi wi-thermometer-exterior" style="color: #10b981;" title="涼爽"></i>`;
+        return `<i class="wi wi-thermometer" title="舒適"></i>`;
+    }
+    
+    function formatWeatherInfo(data) {
+        const pastRainfall = data.hourly.precipitation.slice(0, 48).reduce((a, b) => a + b, 0);
+        const pastWeatherHTML = `
+            <p style="font-size: 14px; margin: 0;">
+                累積雨量: <strong style="color: var(--primary-color);">${pastRainfall.toFixed(1)} mm</strong>
+            </p>
+            <p style="font-size: 12px; margin: 8px 0 0 0;" class="rainfall-desc">
+                ${getAccumulatedRainfallDescription(pastRainfall)}
+            </p>`;
+        
+        const currentWeatherHTML = `
+            <p style="font-size: 18px; margin: 0 0 8px 0;">
+                ${getTemperatureIcon(data.current.temperature_2m)} 
+                <strong>${data.current.temperature_2m}°C</strong>
+                <small style="color: var(--secondary-color);">(體感 ${data.current.apparent_temperature}°C)</small>
+            </p>
+            <p style="font-size: 14px; margin: 0;">
+                <i class="wi ${getRainfallInfo(data.current.precipitation).icon}" style="color: var(--accent-color);"></i> 
+                ${getRainfallInfo(data.current.precipitation).desc}
+            </p>`;
+        
+        let dailyForecastHTML = '';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        data.daily.time.forEach((day, i) => {
+            const forecastDate = new Date(day + 'T00:00:00'); // Ensure date is parsed as local
+            if (forecastDate >= today && i < 16) { // Show today and future days
+                const minTemp = data.daily.temperature_2m_min[i];
+                const maxTemp = data.daily.temperature_2m_max[i];
+                const rainProb = data.daily.precipitation_probability_max[i];
+                dailyForecastHTML += `
+                    <div class="weather-item clickable" data-day-index="${i}">
+                        <div style="font-weight: 600; color: var(--primary-color); margin-bottom: 4px;">
+                            ${forecastDate.getMonth()+1}/${forecastDate.getDate()}
+                        </div>
+                        <div class="temp-line">
+                            ${getTemperatureIcon(minTemp)} ${minTemp}° / ${getTemperatureIcon(maxTemp)} ${maxTemp}°
+                        </div>
+                        <div class="temp-line">
+                            <i class="wi wi-umbrella" style="color: var(--accent-color);"></i> ${rainProb}%
+                        </div>
+                    </div>`;
+            }
         });
-    </script>
+        
+        document.getElementById('past-weather-content').innerHTML = pastWeatherHTML;
+        document.getElementById('current-weather-content').innerHTML = currentWeatherHTML;
+        document.getElementById('forecast-grid').innerHTML = dailyForecastHTML;
+        document.getElementById('forecast-grid').addEventListener('click', (event) => {
+            const targetItem = event.target.closest('.weather-item.clickable');
+            if(targetItem) {
+                const dayIndex = targetItem.dataset.dayIndex;
+                showDailyDetail(parseInt(dayIndex));
+            }
+        });
+    }
+
+    // ⭐ 補全此函數 ⭐
+    function showDailyDetail(dayIndex) {
+        if (!fullWeatherData) return;
+        const date = new Date(fullWeatherData.daily.time[dayIndex] + 'T00:00:00');
+        const dayStartIndex = fullWeatherData.hourly.time.findIndex(t => t.startsWith(fullWeatherData.daily.time[dayIndex]));
+        
+        if (dayStartIndex === -1) return;
+
+        const daytimeTemps = fullWeatherData.hourly.temperature_2m.slice(dayStartIndex + 7, dayStartIndex + 19);
+        const nighttimeTemps = [
+            ...fullWeatherData.hourly.temperature_2m.slice(dayStartIndex, dayStartIndex + 7),
+            ...fullWeatherData.hourly.temperature_2m.slice(dayStartIndex + 19, dayStartIndex + 24)
+        ];
+
+        const dayHigh = daytimeTemps.length > 0 ? Math.max(...daytimeTemps) : 'N/A';
+        const nightLow = nighttimeTemps.length > 0 ? Math.min(...nighttimeTemps) : 'N/A';
+
+        let hourlyContent = '';
+        for (let i = 0; i < 24; i++) {
+            const hourIndex = dayStartIndex + i;
+            if (hourIndex >= fullWeatherData.hourly.time.length) break;
+
+            const hour = new Date(fullWeatherData.hourly.time[hourIndex]).getHours();
+            const temp = fullWeatherData.hourly.temperature_2m[hourIndex];
+            const precip = fullWeatherData.hourly.precipitation[hourIndex];
+            
+            hourlyContent += `
+                <div class="hourly-item">
+                    <div class="hour">${String(hour).padStart(2, '0')}:00</div>
+                    <div>${getTemperatureIcon(temp)} ${temp.toFixed(1)}°C</div>
+                    <div style="font-size:10px; color: #6b7280;">
+                      <i class="wi ${getRainfallInfo(precip).icon}"></i> ${precip > 0 ? precip.toFixed(1) + 'mm' : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        let content = `
+            <span class="close-btn" id="close-daily-modal">&times;</span>
+            <div style="padding-top: 40px; flex: 1; display: flex; flex-direction: column;">
+                <h4 style="font-size: 20px; margin-bottom: 16px; color: var(--primary-color);">
+                    📅 ${date.getMonth()+1}/${date.getDate()} 詳細預報
+                </h4>
+                <div style="background: rgba(255, 255, 255, 0.8); padding: 16px; border-radius: 12px; margin-bottom: 20px;">
+                    <p style="font-size: 16px; margin: 0;">
+                        ${getTemperatureIcon(dayHigh)} 日高溫: <strong>${typeof dayHigh === 'number' ? dayHigh.toFixed(1) : 'N/A'}°C</strong> | 
+                        ${getTemperatureIcon(nightLow)} 夜低溫: <strong>${typeof nightLow === 'number' ? nightLow.toFixed(1) : 'N/A'}°C</strong>
+                    </p>
+                </div>
+                <h5 style="font-size: 16px; margin-bottom: 12px; color: var(--text-color);">每小時預報</h5>
+                <div class="hourly-forecast-grid">
+                    ${hourlyContent}
+                </div>
+            </div>`;
+
+        dailyDetailContent.innerHTML = content;
+        dailyDetailModal.style.display = "block";
+
+        document.getElementById('close-daily-modal').onclick = function() {
+            dailyDetailModal.style.display = "none";
+        };
+    }
+
+    // 綁定事件監聽器
+    plotBtn.addEventListener('click', () => {
+        const lat = document.getElementById('latInput').value;
+        const lng = document.getElementById('lngInput').value;
+        if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+            plotAndFetchWeather(lat, lng);
+        } else {
+            alert('請輸入有效的經緯度！');
+        }
+    });
+
+    geocodeBtn.addEventListener('click', geocodeAddress);
+    newSearchBtn.addEventListener('click', showInputView);
+    showWeatherBtn.addEventListener('click', showWeatherView);
+    backFromWeatherBtn.addEventListener('click', showResultView);
+});
+</script>
 </body>
 </html>
